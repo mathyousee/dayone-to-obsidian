@@ -18,7 +18,7 @@ A Python script that converts DayOne journal exports to Obsidian-compatible Mark
 3. Run the conversion:
 
 ```bash
-python dayone_to_obsidian.py
+python convert_dayone_to_obsidian.py
 ```
 
 Your converted files will be in the `output/journal-entries/` folder.
@@ -34,22 +34,22 @@ Your converted files will be in the `output/journal-entries/` folder.
 ### Basic Usage
 ```bash
 # Convert with default settings
-python dayone_to_obsidian.py
+python convert_dayone_to_obsidian.py
 
 # Specify custom input/output paths
-python dayone_to_obsidian.py -i "DayOne Export.json" -o "C:\Obsidian\Vault\Journal"
+python convert_dayone_to_obsidian.py -i "DayOne Export.json" -o "C:\Obsidian\Vault\Journal"
 ```
 
 ### Advanced Options
 ```bash
 # Update mode - overwrite files if they've been modified
-python dayone_to_obsidian.py --update
+python convert_dayone_to_obsidian.py --update
 
 # Preview changes without making them
-python dayone_to_obsidian.py --dry-run --verbose
+python convert_dayone_to_obsidian.py --dry-run --verbose
 
 # Get help
-python dayone_to_obsidian.py --help
+python convert_dayone_to_obsidian.py --help
 ```
 
 ## Output Structure
@@ -147,5 +147,6 @@ The script automatically converts UTC timestamps to Central Time (America/Chicag
 - **Timezone issues**: Script defaults to Central Time; modify timezone mappings if needed
 
 ## License
+
 
 This script is provided as-is for personal use. Feel free to modify and adapt for your needs.
