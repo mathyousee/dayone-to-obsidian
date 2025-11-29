@@ -3,3 +3,8 @@ dayone_to_obsidian.py
 
 # Output directory
 output/
+
+# Input files
+*.json
+*.zip
+photos/
