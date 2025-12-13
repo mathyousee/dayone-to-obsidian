@@ -4,6 +4,9 @@ dayone_to_obsidian.py
 # Output directory
 output/
 
+# Virtual environment
+venv/
+
 # Input files
 *.json
 *.zip
