@@ -15,7 +15,8 @@ A Python script that converts DayOne journal exports to Obsidian-compatible Mark
 
 1. Export your DayOne journal as JSON (with photos)
 2. Place the script in the same directory as your export files
-3. Run the conversion:
+3. (Optional) Copy `.env.example` to `.env` and customize settings
+4. Run the conversion:
 
 ```bash
 python convert_dayone_to_obsidian.py
@@ -25,7 +26,8 @@ Your converted files will be in the `output/journal-entries/` folder.
 
 ## Requirements
 
-- Python 3.6+ (uses only standard library)
+- Python 3.6+
+- python-dotenv package (install with: `pip install python-dotenv`)
 - DayOne JSON export file
 - Photos folder (if your journal contains images)
 
@@ -50,6 +52,49 @@ python convert_dayone_to_obsidian.py --dry-run --verbose
 
 # Get help
 python convert_dayone_to_obsidian.py --help
+```
+
+## Configuration
+
+You can customize the converter's behavior using a `.env` file. Copy `.env.example` to `.env` and modify the values:
+
+```bash
+cp .env.example .env
+```
+
+### Available Settings
+
+- **`INPUT_FILE`**: Default input JSON filename (default: `DayOne Journal.json`)
+- **`OUTPUT_DIR`**: Output directory path (default: `./output`)
+- **`DEFAULT_TIMEZONE`**: Your local timezone for date conversion (default: `America/Chicago`)
+  - Supported: `America/Chicago`, `America/New_York`, `America/Denver`, `America/Los_Angeles`, `America/Phoenix`, `UTC`
+- **`MAX_FILENAME_LENGTH`**: Maximum filename length in characters (default: `50`)
+- **`UUID_PREFIX_LENGTH`**: Number of UUID characters in filenames (default: `8`)
+- **`JOURNAL_ENTRIES_SUBDIR`**: Subdirectory name for entries (default: `journal-entries`)
+- **`PHOTOS_SUBDIR`**: Subdirectory name for photos (default: `photos`)
+- **`FALLBACK_TITLE`**: Title for entries without text (default: `Untitled`)
+- **`LOG_FILENAME`**: Log file name (default: `conversion_log.txt`)
+
+### Configuration Priority
+
+Command-line arguments override `.env` settings:
+1. Command-line arguments (highest priority)
+2. `.env` file settings
+3. Default values (lowest priority)
+
+### Example `.env` File
+
+```bash
+# File paths
+INPUT_FILE=My Journal Export.json
+OUTPUT_DIR=C:\Obsidian\MyVault\Journal
+
+# Timezone
+DEFAULT_TIMEZONE=America/New_York
+
+# Filename settings
+MAX_FILENAME_LENGTH=60
+UUID_PREFIX_LENGTH=6
 ```
 
 ## Output Structure
@@ -110,7 +155,15 @@ Had a great time visiting the fire station today!
 
 ## Timezone Support
 
-The script automatically converts UTC timestamps to Central Time (America/Chicago) with full DST awareness. Other timezones are supported - modify the timezone mappings in the script if needed.
+The script automatically converts UTC timestamps to your local timezone with full DST awareness. By default, it uses Central Time (America/Chicago). To change this, set `DEFAULT_TIMEZONE` in your `.env` file.
+
+Supported timezones:
+- `America/Chicago` (Central)
+- `America/New_York` (Eastern)
+- `America/Denver` (Mountain)
+- `America/Los_Angeles` (Pacific)
+- `America/Phoenix` (Arizona, no DST)
+- `UTC`
 
 ## Logging
 
@@ -120,7 +173,9 @@ The script automatically converts UTC timestamps to Central Time (America/Chicag
 
 ## Files
 
-- `dayone_to_obsidian.py` - Main conversion script
+- `convert_dayone_to_obsidian.py` - Main conversion script
+- `.env.example` - Template for environment variables
+- `.env` - Your local configuration (create from `.env.example`)
 - `REQUIREMENTS.md` - Detailed technical specifications
 - `README.md` - This file
 

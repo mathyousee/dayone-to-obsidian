@@ -7,6 +7,9 @@ output/
 # Virtual environment
 venv/
 
+# Environment variables (contains user-specific settings)
+.env
+
 # Input files
 *.json
 *.zip

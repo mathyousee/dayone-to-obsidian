@@ -13,6 +13,10 @@ import re
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 # Timezone offset mappings (hours from UTC)
@@ -56,6 +60,11 @@ def is_dst(dt):
 
 def get_timezone_offset(timezone_str, dt):
     """Get the UTC offset for a timezone at a given datetime."""
+    # Validate timezone against known timezones
+    if timezone_str not in TIMEZONE_OFFSETS_STD:
+        print(f"Warning: Unknown timezone '{timezone_str}'. Using default timezone.")
+        timezone_str = os.getenv('DEFAULT_TIMEZONE', 'America/Chicago')
+    
     if is_dst(dt):
         return TIMEZONE_OFFSETS_DST.get(timezone_str, -6)  # Default to CDT
     else:
@@ -63,19 +72,23 @@ def get_timezone_offset(timezone_str, dt):
 
 
 def parse_args():
-    """Parse command line arguments."""
+    """Parse command line arguments with .env file support."""
+    # Get defaults from environment variables
+    default_input = os.getenv('INPUT_FILE', "DayOne Export.json")
+    default_output = os.getenv('OUTPUT_DIR', "./output")
+    
     parser = argparse.ArgumentParser(
         description="Convert DayOne journal exports to Obsidian-compatible Markdown files."
     )
     parser.add_argument(
         "-i", "--input",
-        default="DayOne Export.json",
-        help="Path to JSON file (default: \"DayOne Export.json\")"
+        default=default_input,
+        help=f"Path to JSON file (default from .env: \"{default_input}\")"
     )
     parser.add_argument(
         "-o", "--output",
-        default="./output",
-        help="Output directory (default: ./output)"
+        default=default_output,
+        help=f"Output directory (default from .env: {default_output})"
     )
     parser.add_argument(
         "-u", "--update",
@@ -95,7 +108,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def sanitize_filename(text, max_length=50):
+def sanitize_filename(text, max_length=None):
     """
     Sanitize text for use in a filename.
     
@@ -103,8 +116,11 @@ def sanitize_filename(text, max_length=50):
     - Trim whitespace
     - Truncate at word boundary if over max_length
     """
+    if max_length is None:
+        max_length = int(os.getenv('MAX_FILENAME_LENGTH', '50'))
+    
     if not text:
-        return "Untitled"
+        return os.getenv('FALLBACK_TITLE', 'Untitled')
     
     # Remove special characters not allowed in filenames
     sanitized = re.sub(r'[<>:"/\\|?*]', '', text)
@@ -116,7 +132,7 @@ def sanitize_filename(text, max_length=50):
     sanitized = sanitized.strip()
     
     if not sanitized:
-        return "Untitled"
+        return os.getenv('FALLBACK_TITLE', 'Untitled')
     
     # Truncate at word boundary if too long
     if len(sanitized) > max_length:
@@ -127,7 +143,7 @@ def sanitize_filename(text, max_length=50):
             truncated = truncated[:last_space]
         sanitized = truncated.strip()
     
-    return sanitized if sanitized else "Untitled"
+    return sanitized if sanitized else os.getenv('FALLBACK_TITLE', 'Untitled')
 
 
 def extract_title(text):
@@ -140,7 +156,7 @@ def extract_title(text):
     4. Skip lines that are only images
     """
     if not text:
-        return "Untitled"
+        return os.getenv('FALLBACK_TITLE', 'Untitled')
     
     lines = text.strip().split('\n')
     
@@ -163,7 +179,7 @@ def extract_title(text):
             if not line.startswith('!['):
                 return sanitize_filename(line)
     
-    return "Untitled"
+    return os.getenv('FALLBACK_TITLE', 'Untitled')
 
 
 def celsius_to_fahrenheit(celsius):
@@ -190,7 +206,8 @@ def format_weather(weather_data):
 
 def normalize_extension(ext):
     """Normalize image extension (jpg -> jpeg for consistency)."""
-    ext = ext.lower() if ext else 'jpeg'
+    default_ext = os.getenv('DEFAULT_IMAGE_EXTENSION', 'jpeg')
+    ext = ext.lower() if ext else default_ext
     # Normalize jpg to jpeg for consistency
     if ext == 'jpg':
         return 'jpeg'
@@ -239,7 +256,8 @@ def build_frontmatter(entry):
         fm['uuid'] = entry['uuid']
     
     # Dates - convert to local timezone
-    timezone_str = entry.get('timeZone', 'America/Chicago')
+    default_tz = os.getenv('DEFAULT_TIMEZONE', 'America/Chicago')
+    timezone_str = entry.get('timeZone', default_tz)
     
     if 'creationDate' in entry:
         dt = convert_to_local_time(entry['creationDate'], timezone_str)
@@ -338,18 +356,21 @@ def format_local_datetime(dt):
     if not dt:
         return None
     # Format as ISO but without the timezone offset for cleaner frontmatter
-    return dt.strftime('%Y-%m-%dT%H:%M:%S')
+    date_format = os.getenv('DATETIME_FORMAT_FRONTMATTER', '%Y-%m-%dT%H:%M:%S')
+    return dt.strftime(date_format)
 
 
 def generate_filename(entry):
     """Generate filename for an entry."""
     # Extract date and convert to local timezone
     creation_date = entry.get('creationDate', '')
-    timezone_str = entry.get('timeZone', 'America/Chicago')
+    default_tz = os.getenv('DEFAULT_TIMEZONE', 'America/Chicago')
+    timezone_str = entry.get('timeZone', default_tz)
     
     dt = convert_to_local_time(creation_date, timezone_str)
     if dt:
-        date_str = dt.strftime('%Y-%m-%d')
+        date_format = os.getenv('DATE_FORMAT_FILENAME', '%Y-%m-%d')
+        date_str = dt.strftime(date_format)
     else:
         date_str = 'Unknown-Date'
     
@@ -357,11 +378,12 @@ def generate_filename(entry):
     text = entry.get('text', '')
     title = extract_title(text)
     
-    # Get UUID prefix (first 8 characters)
+    # Get UUID prefix (configurable length)
     uuid = entry.get('uuid', 'UNKNOWN')
-    uuid8 = uuid[:8]
+    uuid_length = int(os.getenv('UUID_PREFIX_LENGTH', '8'))
+    uuid_prefix = uuid[:uuid_length]
     
-    return f"{date_str} {title} ({uuid8}).md"
+    return f"{date_str} {title} ({uuid_prefix}).md"
 
 
 def find_existing_file(output_dir, uuid8):
@@ -445,9 +467,11 @@ def copy_photos(entry, source_photos_dir, output_photos_dir, dry_run=False, verb
 
 def write_log(output_dir, stats, input_file, update_mode):
     """Write conversion log to file."""
-    log_path = Path(output_dir) / 'conversion_log.txt'
+    log_filename = os.getenv('LOG_FILENAME', 'conversion_log.txt')
+    log_path = Path(output_dir) / log_filename
     
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp_format = os.getenv('LOG_TIMESTAMP_FORMAT', '%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now().strftime(timestamp_format)
     mode = 'update' if update_mode else 'skip'
     
     log_entry = f"""================================================================================
@@ -489,10 +513,13 @@ def process_entries(args):
         print("No entries found in JSON file.")
         return 0
     
-    # Setup directories
+    # Setup directories - use environment variables for subdirectory names
     output_dir = Path(args.output)
-    entries_dir = output_dir / 'journal-entries'
-    photos_dir = entries_dir / 'photos'
+    journal_subdir = os.getenv('JOURNAL_ENTRIES_SUBDIR', 'journal-entries')
+    photos_subdir = os.getenv('PHOTOS_SUBDIR', 'photos')
+    
+    entries_dir = output_dir / journal_subdir
+    photos_dir = entries_dir / photos_subdir
     source_photos_dir = input_path.parent / 'photos'
     
     if not args.dry_run:
@@ -603,7 +630,8 @@ def process_entries(args):
     # Write log file
     if not args.dry_run:
         write_log(args.output, stats, args.input, args.update)
-        print(f"\nLog written to: {output_dir / 'conversion_log.txt'}")
+        log_filename = os.getenv('LOG_FILENAME', 'conversion_log.txt')
+        print(f"\nLog written to: {output_dir / log_filename}")
     
     return 0 if stats['errors'] == 0 else 1
 
